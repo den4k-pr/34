@@ -241,29 +241,52 @@
     __webpack_require__.r(__webpack_exports__);
     var _components__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(980);
     var _components__WEBPACK_IMPORTED_MODULE_0___default = __webpack_require__.n(_components__WEBPACK_IMPORTED_MODULE_0__);
+    const CACHE_KEY = "loaded-components-v1";
     document.addEventListener("DOMContentLoaded", async () => {
       console.log("🚀 System initialized");
       initSpecificComponents();
+      const cached = getCache();
       const mainComponent = document.querySelector('[data-component="main"]');
       const otherComponents = Array.from(document.querySelectorAll('[data-component]:not([data-component="main"])'));
       if (mainComponent) {
-        await waitUntilReady(mainComponent);
+        const id = getComponentId(mainComponent);
+        if (!cached[id]) {
+          await waitUntilReady(mainComponent);
+          cached[id] = true;
+          saveCache(cached);
+        }
         mainComponent.classList.add("is-ready");
         loadedComponentsCache.set(mainComponent, true);
       }
       requestAnimationFrame(() => {
         revealSequentially(otherComponents, {
           minDelay: 30
-        });
+        }, cached);
       });
     });
     const loadedComponentsCache = new WeakMap;
+    function getCache() {
+      try {
+        return JSON.parse(localStorage.getItem(CACHE_KEY)) || {};
+      } catch {
+        return {};
+      }
+    }
+    function saveCache(cache) {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    }
+    function getComponentId(el) {
+      return el.dataset.component;
+    }
     function initSpecificComponents() {}
-    async function revealSequentially(components, {minDelay = 50} = {}) {
+    async function revealSequentially(components, {minDelay = 50} = {}, cached) {
       for (const component of components) {
-        if (!loadedComponentsCache.has(component)) {
+        const id = getComponentId(component);
+        if (!cached[id] && !loadedComponentsCache.has(component)) {
           await waitUntilReady(component);
           loadedComponentsCache.set(component, true);
+          cached[id] = true;
+          saveCache(cached);
         }
         component.classList.add("is-ready");
         await delay(minDelay);
